@@ -16,7 +16,6 @@ import {
 import ProductCard from "../components/product/ProductCard";
 import ImprovedImage from "@/components/ui/ImprovedImage";
 
-
 // Quick commerce categories - groceries focus
 const categories = [
   {

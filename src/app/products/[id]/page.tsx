@@ -21,8 +21,6 @@ import { v4 as uuidv4 } from "uuid";
 import ProductCard from "@/components/product/ProductCard";
 import ImprovedImage from "@/components/ui/ImprovedImage";
 
-
-
 // Sample quick commerce grocery product data
 const sampleProduct = {
   id: "1",

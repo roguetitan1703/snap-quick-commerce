@@ -19,7 +19,7 @@ const productImageMap = {
   "Sourdough Bread": "/images/products/bread.svg",
   "Almond Milk 1L": "/images/products/almond-milk.svg",
   "Organic Spinach 250g": "/images/products/spinach.jpg",
-  "Fresh Strawberries 250g": "/images/products/strawberries.jpg",
+  "Fresh Strawberries 250g": "/images/products/strawberries.svg",
   "Mixed Berries Pack": "/images/products/berries.svg",
   "Toilet Paper 6 Rolls": "/images/products/toilet-paper.svg",
   "Liquid Hand Soap 250ml": "/images/products/soap.svg",

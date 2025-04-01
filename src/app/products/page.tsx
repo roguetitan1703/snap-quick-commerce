@@ -90,7 +90,7 @@ const allProducts = [
     id: "9",
     name: "Fresh Strawberries 250g",
     price: 4.29,
-    imageUrl: "/images/products/strawberries.jpg",
+    imageUrl: "/images/products/strawberries.svg",
     category: "Fruits & Vegetables",
     currentStock: 22,
     isNew: true,

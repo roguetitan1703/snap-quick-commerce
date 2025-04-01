@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { getFallbackImage } from "@/utils/productImageMap";
+import { getFallbackImage, productImageMap } from "@/utils/productImageMap";
 
 /**
  * ImprovedImage component with better error handling to prevent continuous refetching
@@ -30,6 +30,7 @@ export const ImprovedImage = ({
 
   // Generate fallback SVG path based on product name or image path
   const getFallback = () => {
+    // If product name is provided directly, use it first
     if (productName) {
       return getFallbackImage(productName);
     }
@@ -37,18 +38,38 @@ export const ImprovedImage = ({
     // Extract the filename from the path to try matching a product
     const filename = src.split("/").pop()?.split(".")[0] || "";
 
-    // Try to determine product name from filename
+    // Check if the filename exactly matches a key in our SVG map
+    const svgPath = `/images/products/${filename}.svg`;
+    if (Object.values(productImageMap).includes(svgPath)) {
+      return svgPath;
+    }
+
+    // Try to determine product name from filename by formatting it
     const formattedName = filename
       .split("-")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
 
-    // Check if we have a mapping for this name
+    // Check if we have a mapping for this formatted name
     if (formattedName) {
       const fallback = getFallbackImage(formattedName);
       if (fallback !== "/images/placeholder-product.svg") {
         return fallback;
       }
+    }
+
+    // Try to extract product name from alt text if it's descriptive
+    if (alt && alt.length > 3 && !alt.toLowerCase().includes("product")) {
+      const altFallback = getFallbackImage(alt);
+      if (altFallback !== "/images/placeholder-product.svg") {
+        return altFallback;
+      }
+    }
+
+    // Try using the SVG with the same name as the original image
+    if (filename && !src.endsWith(".svg")) {
+      // Just replace the extension directly
+      return src.replace(/\.(jpg|jpeg|png)$/i, ".svg");
     }
 
     // Default fallback
