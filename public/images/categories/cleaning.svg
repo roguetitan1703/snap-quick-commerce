@@ -1,0 +1,6 @@
+<svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="200" fill="#22d3ee" fill-opacity="0.2"/>
+  <rect x="25" y="25" width="350" height="150" fill="#22d3ee" fill-opacity="0.3" rx="10" ry="10"/>
+  <text x="100" y="100" font-family="Arial" font-size="80" text-anchor="middle" dominant-baseline="middle">🧹</text>
+  <text x="260" y="100" font-family="Arial" font-size="24" text-anchor="middle" dominant-baseline="middle" fill="#555555">cleaning</text>
+</svg>
