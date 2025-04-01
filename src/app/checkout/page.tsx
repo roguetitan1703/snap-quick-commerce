@@ -351,7 +351,7 @@ const CheckoutPage = () => {
       </div>
 
       {/* Fixed Payment Button */}
-      <div className="fixed bottom-0 left-0 w-full bg-white p-4 shadow-lg border-t border-gray-200 max-w-[100vw] overflow-hidden">
+      <div className="fixed bottom-0 left-0 w-full bg-white p-4 shadow-lg border-t border-gray-200 max-w-md mx-auto right-0 z-20">
         <div className="flex justify-between items-center mb-2">
           <p className="snap-text font-medium">Total</p>
           <p className="snap-heading-2 text-indigo-600">₹{total.toFixed(2)}</p>
