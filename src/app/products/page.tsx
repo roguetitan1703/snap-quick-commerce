@@ -11,127 +11,18 @@ import {
   FiMapPin,
 } from "react-icons/fi";
 import Link from "next/link";
+import { useProducts } from "@/hooks/useProducts";
 import ImprovedImage from "@/components/ui/ImprovedImage";
 
-
-
-// Sample product data for quick commerce groceries
-const allProducts = [
-  {
-    id: "1",
-    name: "Organic Bananas (6 pcs)",
-    price: 4.99,
-    imageUrl:
-      "https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    category: "Fruits & Vegetables",
-    currentStock: 50,
-  },
-  {
-    id: "2",
-    name: "Fresh Milk 1L",
-    price: 2.99,
-    imageUrl: "/images/products/milk.jpg",
-    category: "Dairy & Eggs",
-    currentStock: 35,
-  },
-  {
-    id: "3",
-    name: "Brown Eggs (6 pcs)",
-    price: 3.49,
-    imageUrl:
-      "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    category: "Dairy & Eggs",
-    currentStock: 24,
-  },
-  {
-    id: "4",
-    name: "Sourdough Bread",
-    price: 5.99,
-    imageUrl: "/images/products/bread.svg",
-    category: "Bakery",
-    isNew: true,
-  },
-  {
-    id: "5",
-    name: "Avocado (2 pcs)",
-    price: 3.59,
-    imageUrl:
-      "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    category: "Fruits & Vegetables",
-    currentStock: 30,
-  },
-  {
-    id: "6",
-    name: "Greek Yogurt",
-    price: 4.49,
-    imageUrl: "/images/products/yogurt.jpg",
-    category: "Dairy & Eggs",
-    discount: 15,
-    currentStock: 18,
-  },
-  {
-    id: "7",
-    name: "Almond Milk 1L",
-    price: 3.99,
-    imageUrl: "/images/products/almond-milk.svg",
-    category: "Dairy & Eggs",
-    discount: 20,
-    currentStock: 15,
-  },
-  {
-    id: "8",
-    name: "Organic Spinach 250g",
-    price: 2.49,
-    imageUrl: "/images/products/spinach.jpg",
-    category: "Fruits & Vegetables",
-    currentStock: 40,
-  },
-  {
-    id: "9",
-    name: "Fresh Strawberries 250g",
-    price: 4.29,
-    imageUrl: "/images/products/strawberries.svg",
-    category: "Fruits & Vegetables",
-    currentStock: 22,
-    isNew: true,
-  },
-  {
-    id: "10",
-    name: "Mixed Berries Pack",
-    price: 8.99,
-    imageUrl: "/images/products/berries.svg",
-    category: "Fruits & Vegetables",
-    discount: 25,
-    currentStock: 12,
-  },
-  {
-    id: "11",
-    name: "Toilet Paper 6 Rolls",
-    price: 5.99,
-    imageUrl: "/images/products/toilet-paper.svg",
-    category: "Home & Cleaning",
-    currentStock: 60,
-  },
-  {
-    id: "12",
-    name: "Liquid Hand Soap 250ml",
-    price: 3.79,
-    imageUrl: "/images/products/soap.svg",
-    category: "Personal Care",
-    currentStock: 45,
-  },
-];
-
-// Available categories for groceries
-const categories = [
+// Available categories - will be populated from API data
+const initialCategories = [
   "All",
-  "Fruits & Vegetables",
-  "Dairy & Eggs",
-  "Bakery",
+  "Dairy",
+  "Household",
   "Personal Care",
-  "Home & Cleaning",
   "Snacks",
   "Beverages",
+  "Frozen Foods",
 ];
 
 const ProductsPage = () => {
@@ -143,31 +34,36 @@ const ProductsPage = () => {
     categoryParam || "All"
   );
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [productsList, setProductsList] = useState(allProducts);
-  const [filteredProducts, setFilteredProducts] = useState(allProducts);
   const [sortOption, setSortOption] = useState("default");
-  const [priceRange, setPriceRange] = useState([0, 200]);
+  const [priceRange, setPriceRange] = useState([0, 300]);
+  const [categories, setCategories] = useState(initialCategories);
 
-  // Filter products based on category and search
+  // Fetch products from API
+  const {
+    products: apiProducts,
+    loading,
+    error,
+  } = useProducts(
+    selectedCategory !== "All" ? selectedCategory : undefined,
+    searchQuery || undefined
+  );
+
+  // Get unique categories from products
   useEffect(() => {
-    let filtered = [...productsList];
-
-    // Apply category filter
-    if (selectedCategory && selectedCategory !== "All") {
-      filtered = filtered.filter(
-        (product) => product.category === selectedCategory
-      );
+    if (apiProducts && apiProducts.length > 0) {
+      const uniqueCategories = [
+        "All",
+        ...new Set(apiProducts.map((product) => product.category)),
+      ];
+      setCategories(uniqueCategories);
     }
+  }, [apiProducts]);
 
-    // Apply search filter if exists
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (product) =>
-          product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (product.category &&
-            product.category.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
+  // Apply client-side filters and sorting
+  const filteredProducts = React.useMemo(() => {
+    if (!apiProducts) return [];
+
+    let filtered = [...apiProducts];
 
     // Apply price range filter
     filtered = filtered.filter(
@@ -183,16 +79,22 @@ const ProductsPage = () => {
       case "price-high-low":
         filtered.sort((a, b) => b.price - a.price);
         break;
-      case "newest":
-        filtered.sort((a, b) => (a.isNew === b.isNew ? 0 : a.isNew ? -1 : 1));
+      case "name-a-z":
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "name-z-a":
+        filtered.sort((a, b) => b.name.localeCompare(a.name));
         break;
       default:
-        // Default sorting (by id) - no change needed
+        // Default sorting by id
+        filtered.sort((a, b) => a.productId - b.productId);
         break;
     }
 
-    setFilteredProducts(filtered);
-  }, [productsList, selectedCategory, searchQuery, sortOption, priceRange]);
+    return filtered;
+  }, [apiProducts, sortOption, priceRange]);
+
+  console.log(filteredProducts);
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
@@ -248,8 +150,10 @@ const ProductsPage = () => {
             <button
               key={category}
               onClick={() => handleCategoryChange(category)}
-              className={`snap-chip ${
-                selectedCategory === category ? "snap-chip-active" : ""
+              className={`px-4 py-2 rounded-full whitespace-nowrap text-sm ${
+                selectedCategory === category
+                  ? "bg-primary text-white"
+                  : "bg-gray-100 text-gray-800"
               }`}
             >
               {category}
@@ -258,50 +162,83 @@ const ProductsPage = () => {
         </div>
       </div>
 
-      {/* Filter drawer - shows when filter button is clicked */}
-      <div
-        className={`fixed inset-0 bg-black bg-opacity-50 z-20 transition-opacity duration-300 overflow-hidden ${
-          isFilterOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={closeFilter}
-      >
-        <div
-          className={`absolute right-0 top-0 bottom-0 w-4/5 max-w-sm bg-white transform transition-transform duration-300 overflow-y-auto ${
-            isFilterOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-4">
+      {/* Loading state */}
+      {loading && (
+        <div className="snap-container py-10 text-center">
+          <div className="animate-pulse flex flex-col items-center justify-center">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !loading && (
+        <div className="snap-container py-10 text-center">
+          <p className="text-red-500">{error}</p>
+          <button
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg"
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {/* Products grid */}
+      {!loading && !error && (
+        <div className="snap-container">
+          {filteredProducts.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-gray-500">No products found.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 py-4">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.productId} product={product} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Filter sidebar */}
+      {isFilterOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex justify-end">
+          <div className="w-4/5 bg-white h-full overflow-auto p-4 animate-slide-in-right">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="snap-heading-2">Filters</h2>
-              <button onClick={closeFilter} className="p-2">
+              <h2 className="text-xl font-semibold">Filters</h2>
+              <button
+                onClick={closeFilter}
+                className="p-2 rounded-full bg-gray-100"
+              >
                 <FiX className="w-5 h-5" />
               </button>
             </div>
 
             {/* Sort options */}
             <div className="mb-6">
-              <h3 className="snap-heading-3 mb-2">Sort By</h3>
+              <h3 className="text-lg font-medium mb-3">Sort By</h3>
               <select
                 value={sortOption}
                 onChange={handleSortChange}
-                className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                className="w-full p-3 border rounded-lg bg-gray-50"
               >
                 <option value="default">Default</option>
                 <option value="price-low-high">Price: Low to High</option>
                 <option value="price-high-low">Price: High to Low</option>
-                <option value="newest">Newest First</option>
+                <option value="name-a-z">Name: A to Z</option>
+                <option value="name-z-a">Name: Z to A</option>
               </select>
             </div>
 
             {/* Price range */}
             <div className="mb-6">
-              <h3 className="snap-heading-3 mb-2">Price Range</h3>
-              <div className="flex items-center space-x-2">
+              <h3 className="text-lg font-medium mb-3">Price Range</h3>
+              <div className="flex space-x-4">
                 <div className="flex-1">
-                  <label className="snap-text-secondary text-xs mb-1 block">
-                    Min
-                  </label>
+                  <label className="text-sm text-gray-500">Min</label>
                   <input
                     type="number"
                     name="min"
@@ -309,20 +246,18 @@ const ProductsPage = () => {
                     onChange={handlePriceChange}
                     min="0"
                     max={priceRange[1]}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    className="w-full p-2 border rounded-lg bg-gray-50"
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="snap-text-secondary text-xs mb-1 block">
-                    Max
-                  </label>
+                  <label className="text-sm text-gray-500">Max</label>
                   <input
                     type="number"
                     name="max"
                     value={priceRange[1]}
                     onChange={handlePriceChange}
                     min={priceRange[0]}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    className="w-full p-2 border rounded-lg bg-gray-50"
                   />
                 </div>
               </div>
@@ -331,46 +266,13 @@ const ProductsPage = () => {
             {/* Apply filters button */}
             <button
               onClick={closeFilter}
-              className="snap-button-primary w-full"
+              className="w-full py-3 bg-primary text-white rounded-lg mt-4"
             >
               Apply Filters
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Products grid */}
-      <div className="snap-container">
-        {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                imageUrl={product.imageUrl}
-                category={product.category}
-                currentStock={product.currentStock}
-                discount={product.discount}
-                isNew={product.isNew}
-                className="h-full"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiX className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="snap-heading-3 mb-2">No products found</h3>
-            <p className="snap-text-secondary mb-6">
-              Try adjusting your search or filter to find what you're looking
-              for.
-            </p>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 };

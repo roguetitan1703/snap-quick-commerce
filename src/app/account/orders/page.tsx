@@ -4,14 +4,12 @@ import React, { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-import ImprovedImage from "@/components/ui/ImprovedImage";
-
-
   FiChevronRight,
-  FiPackage,
   FiChevronLeft,
-  FiShoppingBag,
+  FiPackage,
+  FiArrowLeft,
 } from "react-icons/fi";
+import ImprovedImage from "@/components/ui/ImprovedImage";
 
 // Mock order data for quick commerce grocery products
 const orders = [
@@ -239,7 +237,7 @@ const OrdersPage = () => {
       ) : (
         <div className="flex flex-col items-center justify-center p-8 h-[70vh]">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <FiShoppingBag className="w-10 h-10 text-gray-400" />
+            <FiArrowLeft className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             No orders yet

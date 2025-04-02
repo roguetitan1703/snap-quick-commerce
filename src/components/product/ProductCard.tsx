@@ -1,208 +1,184 @@
 "use client";
 
-import React, { Suspense } from "react";
-import Image from "next/image";
+import React, { useState } from "react";
 import Link from "next/link";
 import { FiShoppingBag, FiPlus, FiMinus } from "react-icons/fi";
-import { useCartStore } from "../../store/cartStore";
-import { v4 as uuidv4 } from "uuid";
+import { useCart } from "@/hooks/useCart";
 import ImprovedImage from "@/components/ui/ImprovedImage";
 
-
-
-interface ProductCardProps {
-  id: string;
+// This now matches the backend API schema
+interface Product {
+  productId: number;
   name: string;
+  description: string;
   price: number;
-  imageUrl?: string;
-  category?: string;
-  isNew?: boolean;
-  discount?: number;
-  currentStock?: number;
-  className?: string;
+  category: string;
+  imageUrl: string;
+  currentStock: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-// Product image component with error handling
-const ProductImage = ({
-  imageUrl,
-  name,
-}: {
-  imageUrl?: string;
-  name: string;
-}) => {
-  return (
-    <div className="w-full h-36 bg-gray-100 relative">
-      {imageUrl ? (
-        <Image
-          src={imageUrl}
-          alt={name}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = "/images/placeholder-product.svg";
-          }}
-        />
-      ) : (
-        <div className="flex items-center justify-center h-full w-full bg-gray-100">
-          <Image
-            src="/images/placeholder-product.svg"
-            alt={name}
-            fill
-            className="object-contain p-4"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        </div>
-      )}
-    </div>
-  );
-};
+interface ProductCardProps {
+  product: Product;
+  hideActions?: boolean;
+  isWishlist?: boolean;
+  onRemoveFromWishlist?: (id: number) => void;
+}
 
-const ProductCard = ({
-  id,
-  name,
-  price,
-  imageUrl,
-  category,
-  isNew = false,
-  discount = 0,
-  currentStock = 10,
-  className = "",
-}: ProductCardProps) => {
-  const { addItem, items } = useCartStore((state) => ({
-    addItem: state.addItem,
-    items: state.items,
-  }));
+export default function ProductCard({
+  product,
+  hideActions = false,
+  isWishlist = false,
+  onRemoveFromWishlist,
+}: ProductCardProps) {
+  // Add null check for product
+  if (!product) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-4">
+        Product data not available
+      </div>
+    );
+  }
+
+  const {
+    productId,
+    name,
+    category,
+    price,
+    imageUrl,
+    currentStock = 0,
+  } = product;
+
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+  // Use the cart hook
+  const { addToCart, updateCartItem, cartItems } = useCart();
+
+  // Check if product is already in cart
+  const isInCart = cartItems.some(
+    (item) => item.product.productId === productId
+  );
+
   const isOutOfStock = currentStock === 0;
-  const discountedPrice =
-    discount > 0 ? price - (price * discount) / 100 : price;
 
   // Check if this product is already in the cart
-  const cartItem = items.find((item) => item.productId === id);
+  const cartItem = cartItems.find(
+    (item) => item.product.productId === productId
+  );
   const quantityInCart = cartItem ? cartItem.quantity : 0;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (currentStock > 0) {
-      addItem({
-        id: cartItem?.id || uuidv4(),
-        productId: id,
-        name,
-        price: discountedPrice,
-        imageUrl: imageUrl || "",
-        quantity: 1,
-        maxQuantity: currentStock,
-      });
+    try {
+      setIsAddingToCart(true);
+      await addToCart(productId, product, 1);
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleDecrementQuantity = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cartItem = cartItems.find(
+      (item) => item.product.productId === productId
+    );
+
+    if (cartItem) {
+      try {
+        await updateCartItem(
+          cartItem.itemId,
+          Math.max(1, cartItem.quantity - 1)
+        );
+      } catch (error) {
+        console.error("Failed to update cart:", error);
+      }
     }
   };
 
   return (
-    <div
-      className={`bg-white rounded-lg overflow-hidden shadow-sm ${className}`}
-    >
+    <div className="bg-white rounded-lg overflow-hidden shadow-sm">
       {/* Product Image */}
-      <Link href={`/products/${id}`} className="block relative">
-        <Suspense
-          fallback={<div className="w-full h-36 bg-gray-200 animate-pulse" />}
-        >
-          <ProductImage imageUrl={imageUrl} name={name} />
-        </Suspense>
+      <Link href={`/products/${productId}`}>
+        <div className="relative h-48 overflow-hidden">
+          <ImprovedImage
+            src={imageUrl}
+            alt={name}
+            className="w-full h-full object-cover transform transition-transform duration-300 hover:scale-110"
+            width={500}
+            height={500}
+            fallbackStyles="bg-gray-200 flex items-center justify-center text-gray-400 text-xl"
+            fallbackContent={<FiShoppingBag size={32} />}
+          />
 
-        {/* Badge for new items or discount */}
-        {isNew && !discount && (
-          <div className="absolute top-2 left-2 px-2 py-1 bg-indigo-500 text-white text-xs font-medium rounded-full">
-            NEW
-          </div>
-        )}
+          {/* Out of stock overlay */}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+              <span className="text-white font-medium">Out of Stock</span>
+            </div>
+          )}
 
-        {discount > 0 && (
-          <div className="absolute top-2 left-2 px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
-            -{discount}%
-          </div>
-        )}
-
-        {/* Out of stock overlay */}
-        {isOutOfStock && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <span className="text-white font-medium text-sm">Out of Stock</span>
-          </div>
-        )}
-
-        {/* Low stock indicator */}
-        {!isOutOfStock && currentStock && currentStock <= 5 && (
-          <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
-            Only {currentStock} left
-          </div>
-        )}
+          {/* Low stock indicator */}
+          {!isOutOfStock && currentStock && currentStock <= 5 && (
+            <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
+              Only {currentStock} left
+            </div>
+          )}
+        </div>
       </Link>
 
       {/* Product Info */}
       <div className="p-3">
-        {category && <p className="text-xs text-gray-500 mb-1">{category}</p>}
+        <div className="mb-2">
+          <span className="text-gray-500 text-xs">{category}</span>
+          <h3 className="text-sm font-medium text-gray-900 mt-1 line-clamp-2">
+            <Link href={`/products/${productId}`}>{name}</Link>
+          </h3>
+        </div>
 
-        <Link href={`/products/${id}`} className="block">
-          <h3 className="font-medium text-sm line-clamp-2 h-10 mb-1">{name}</h3>
-        </Link>
-
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex items-baseline">
-            <span className="font-semibold text-sm text-gray-900">
-              ₹{discountedPrice.toFixed(2)}
-            </span>
-
-            {discount > 0 && (
-              <span className="ml-2 text-xs line-through text-gray-500">
+        <div className="flex justify-between items-center">
+          <div>
+            <div className="flex items-center">
+              <span className="text-indigo-600 font-semibold">
                 ₹{price.toFixed(2)}
               </span>
-            )}
+            </div>
           </div>
 
-          {quantityInCart > 0 ? (
-            <div className="flex items-center bg-indigo-50 rounded-lg overflow-hidden">
-              <button
-                className="px-2 py-1 text-indigo-600"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  useCartStore.getState().decrementItem(id);
-                }}
-                aria-label="Decrease quantity"
-              >
-                <FiMinus size={14} />
-              </button>
-              <span className="text-sm font-medium text-indigo-800 px-2">
-                {quantityInCart}
-              </span>
+          {!hideActions && (
+            <div className="flex items-center">
+              {quantityInCart > 0 ? (
+                <>
+                  <button
+                    className="px-2 py-1 text-indigo-600"
+                    onClick={handleDecrementQuantity}
+                    aria-label="Decrease quantity"
+                  >
+                    <FiMinus size={16} />
+                  </button>
+                  <span className="mx-1 text-sm w-5 text-center">
+                    {quantityInCart}
+                  </span>
+                </>
+              ) : null}
               <button
                 className="px-2 py-1 text-indigo-600"
                 onClick={handleAddToCart}
                 disabled={isOutOfStock || quantityInCart >= currentStock}
                 aria-label="Increase quantity"
               >
-                <FiPlus size={14} />
+                <FiPlus size={16} />
               </button>
             </div>
-          ) : (
-            <button
-              className={`p-2 rounded-full ${
-                isOutOfStock
-                  ? "bg-gray-200 text-gray-400"
-                  : "bg-indigo-100 text-indigo-600 hover:bg-indigo-200"
-              }`}
-              disabled={isOutOfStock}
-              aria-label="Add to cart"
-              onClick={handleAddToCart}
-            >
-              <FiPlus size={16} />
-            </button>
           )}
         </div>
       </div>
     </div>
   );
-};
-
-export default ProductCard;
+}

@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   FiUser,
   FiPackage,
@@ -15,14 +16,7 @@ import {
   FiHelpCircle,
 } from "react-icons/fi";
 import { IconType } from "react-icons";
-
-// Dummy user data (will be from authentication system)
-const user = {
-  name: "Alex Johnson",
-  email: "alex.johnson@example.com",
-  profileImage:
-    "https://images.unsplash.com/photo-1599566150163-29194dcaad36?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80",
-};
+import { useAuthContext } from "@/contexts/AuthContext";
 
 // Define interfaces for navigation items
 interface NavigationItem {
@@ -38,6 +32,30 @@ interface NavigationSection {
 }
 
 const AccountPage = () => {
+  const { user, isAuthenticated, isLoading, logout } = useAuthContext();
+  const router = useRouter();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/login?redirect=/account");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render the page content if not authenticated
+  if (!isAuthenticated || !user) {
+    return null; // The useEffect will redirect
+  }
+
   // Navigation sections
   const navigationSections: NavigationSection[] = [
     {
@@ -67,32 +85,35 @@ const AccountPage = () => {
       title: "Support",
       items: [
         { icon: FiHelpCircle, label: "Help Center", href: "/support" },
-        { icon: FiLogOut, label: "Sign Out", href: "/logout", danger: true },
+        {
+          icon: FiLogOut,
+          label: "Sign Out",
+          href: "#",
+          danger: true,
+        },
       ],
     },
   ];
+
+  // Handle logout
+  const handleLogout = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    logout();
+    router.push("/");
+  };
 
   return (
     <div className="pb-20">
       {/* User Profile Section */}
       <div className="bg-white p-4 flex items-center space-x-4">
         <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-200">
-          {user.profileImage ? (
-            <Image
-              src={user.profileImage}
-              alt={user.name}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <FiUser className="w-8 h-8 text-gray-400" />
-            </div>
-          )}
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <FiUser className="w-8 h-8 text-gray-400" />
+          </div>
         </div>
         <div className="flex-1">
-          <h1 className="text-lg font-bold text-gray-900">{user.name}</h1>
-          <p className="text-sm text-gray-500">{user.email}</p>
+          <h1 className="text-lg font-bold text-gray-900">{user.username}</h1>
+          <p className="text-sm text-gray-500">User ID: {user.userId}</p>
         </div>
         <Link
           href="/account/edit"
@@ -117,6 +138,9 @@ const AccountPage = () => {
                 >
                   <Link
                     href={item.href}
+                    onClick={
+                      item.label === "Sign Out" ? handleLogout : undefined
+                    }
                     className={`flex items-center justify-between p-4 ${
                       item.danger ? "text-red-600" : "text-gray-700"
                     }`}

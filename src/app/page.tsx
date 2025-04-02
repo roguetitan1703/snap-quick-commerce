@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 import ProductCard from "../components/product/ProductCard";
 import ImprovedImage from "@/components/ui/ImprovedImage";
+import { useProducts, Product } from "@/hooks/useProducts";
 
 // Quick commerce categories - groceries focus
 const categories = [
@@ -76,85 +77,74 @@ const categories = [
   },
 ];
 
-// Quick commerce products
-const featuredProducts = [
-  {
-    id: "1",
-    name: "Organic Bananas (6 pcs)",
-    price: 4.99,
-    imageUrl:
-      "https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    category: "Fruits & Vegetables",
-    currentStock: 50,
-  },
-  {
-    id: "2",
-    name: "Fresh Milk 1L",
-    price: 2.99,
-    imageUrl: "/images/products/milk.jpg",
-    category: "Dairy & Eggs",
-    currentStock: 35,
-  },
-  {
-    id: "3",
-    name: "Brown Eggs (6 pcs)",
-    price: 3.49,
-    imageUrl:
-      "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    category: "Dairy & Eggs",
-    currentStock: 24,
-  },
-  {
-    id: "4",
-    name: "Sourdough Bread",
-    price: 5.99,
-    imageUrl: "/images/products/bread.svg",
-    category: "Bakery",
-    isNew: true,
-  },
-];
-
-// Items on sale
-const saleItems = [
-  {
-    id: "5",
-    name: "Mixed Berries Pack",
-    price: 8.99,
-    imageUrl: "/images/products/berries.svg",
-    category: "Fruits & Vegetables",
-    discount: 25,
-  },
-  {
-    id: "6",
-    name: "Greek Yogurt",
-    price: 4.49,
-    imageUrl: "/images/products/yogurt.jpg",
-    category: "Dairy & Eggs",
-    discount: 15,
-  },
-];
-
-// Deals of the day
-const deals = [
-  {
-    id: "7",
-    name: "Organic Vegetables Pack",
-    price: 15.99,
-    imageUrl: "/images/products/vegetables.svg",
-    category: "Fruits & Vegetables",
-    discount: 30,
-  },
-  {
-    id: "8",
-    name: "Almond Milk 1L",
-    price: 3.99,
-    imageUrl: "/images/products/almond-milk.svg",
-    category: "Dairy & Eggs",
-    discount: 20,
-  },
-];
-
 export default function Home() {
+  // Fetch products from API instead of using hardcoded data
+  const { products, loading, error } = useProducts();
+
+  // State for different product sections
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [saleItems, setSaleItems] = useState<Product[]>([]);
+  const [deals, setDeals] = useState<Product[]>([]);
+
+  // Filter products for different sections once data is loaded
+  useEffect(() => {
+    if (products.length > 0) {
+      // Get 4 random products for featured section
+      const featuredItems = [...products]
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 4);
+
+      // Get 2 products for sale items
+      const onSale = [...products]
+        .filter(
+          (p) =>
+            p.category === "Fruits & Vegetables" ||
+            p.category === "Dairy & Eggs"
+        )
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 2)
+        .map((p) => ({ ...p, discount: 25 }));
+
+      // Get 2 different products for deals
+      const dailyDeals = [...products]
+        .filter((p) => !onSale.find((s) => s.productId === p.productId))
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 2)
+        .map((p) => ({ ...p, discount: 30 }));
+
+      setFeaturedProducts(featuredItems);
+      setSaleItems(onSale);
+      setDeals(dailyDeals);
+    }
+  }, [products]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center p-4">
+          <h2 className="text-xl font-bold text-red-600 mb-2">Oops!</h2>
+          <p className="mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-indigo-600 text-white rounded-lg px-4 py-2"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="pb-20 bg-gray-50">
       {/* App Header */}
@@ -257,16 +247,8 @@ export default function Home() {
         </div>
         <div className="flex overflow-x-auto hide-scrollbar space-x-3 pb-2">
           {deals.map((product) => (
-            <div key={product.id} className="w-36 flex-shrink-0">
-              <ProductCard
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                imageUrl={product.imageUrl}
-                category={product.category}
-                discount={product.discount}
-                currentStock={20}
-              />
+            <div key={product.productId} className="w-36 flex-shrink-0">
+              <ProductCard product={product} />
             </div>
           ))}
         </div>
@@ -285,16 +267,8 @@ export default function Home() {
         </div>
         <div className="flex overflow-x-auto hide-scrollbar space-x-3 pb-2">
           {saleItems.map((product) => (
-            <div key={product.id} className="w-36 flex-shrink-0">
-              <ProductCard
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                imageUrl={product.imageUrl}
-                category={product.category}
-                discount={product.discount}
-                currentStock={15}
-              />
+            <div key={product.productId} className="w-36 flex-shrink-0">
+              <ProductCard product={product} />
             </div>
           ))}
         </div>
@@ -313,16 +287,7 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {featuredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              id={product.id}
-              name={product.name}
-              price={product.price}
-              imageUrl={product.imageUrl}
-              category={product.category}
-              currentStock={product.currentStock}
-              isNew={product.isNew}
-            />
+            <ProductCard key={product.productId} product={product} />
           ))}
         </div>
       </div>

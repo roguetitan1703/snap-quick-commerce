@@ -10,11 +10,12 @@ import {
   FiUser,
   FiGrid,
 } from "react-icons/fi";
-import { useCartStore } from "../../store/cartStore";
+import { useCart } from "@/hooks/useCart";
 
 const BottomNav: React.FC = () => {
   const pathname = usePathname();
-  const cartItemCount = useCartStore((state) => state.getTotalItems());
+  const { cartTotal } = useCart();
+  const cartItemCount = cartTotal.totalItems;
 
   const navItems = [
     { href: "/", label: "Home", icon: FiHome },

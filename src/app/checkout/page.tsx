@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   FiCreditCard,
   FiMapPin,
@@ -14,7 +15,8 @@ import {
   FiClock,
   FiInfo,
 } from "react-icons/fi";
-import { useCartStore } from "../../store/cartStore";
+import { useCart } from "@/hooks/useCart";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 // Payment method options
 const paymentMethods = [
@@ -58,15 +60,39 @@ const deliverySlots = [
 ];
 
 const CheckoutPage = () => {
-  const { items, getSubtotal, clearCart } = useCartStore();
+  const { cartItems, cartTotal, clearCart } = useCart();
+  const { isAuthenticated, isLoading } = useAuthContext();
+  const router = useRouter();
+
   const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0].id);
   const [selectedSlot, setSelectedSlot] = useState(deliverySlots[0].id);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOrderComplete, setIsOrderComplete] = useState(false);
   const [showDeliveryInfo, setShowDeliveryInfo] = useState(false);
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/login?redirect=/checkout");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render the page content if not authenticated
+  if (!isAuthenticated) {
+    return null; // The useEffect will redirect
+  }
+
   // Calculate totals
-  const subtotal = getSubtotal();
+  const subtotal = cartTotal.totalAmount;
   const deliveryFee =
     deliverySlots.find((slot) => slot.id === selectedSlot)?.fee || 0;
   const packagingFee = 5; // Fixed packaging fee
@@ -134,7 +160,7 @@ const CheckoutPage = () => {
     );
   }
 
-  if (items.length === 0) {
+  if (cartItems.length === 0) {
     return (
       <div className="min-h-screen flex flex-col bg-white">
         <div className="bg-white px-4 py-5 flex items-center sticky top-0 z-10 shadow-sm">
@@ -316,35 +342,55 @@ const CheckoutPage = () => {
           <div className="snap-card mb-20">
             <h2 className="snap-heading-3 mb-3">Bill Details</h2>
 
-            <div className="space-y-2 mb-3">
-              <div className="flex justify-between snap-text">
-                <p className="text-gray-600">Item Total</p>
-                <p className="font-medium">₹{subtotal.toFixed(2)}</p>
+            <div className="border-t border-dashed border-gray-200 pt-3 space-y-1">
+              <div className="flex justify-between text-sm font-medium">
+                <span>Subtotal ({cartItems.length} items)</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
-
-              <div className="flex justify-between snap-text">
-                <p className="text-gray-600">Delivery Fee</p>
-                <p className="font-medium">₹{deliveryFee.toFixed(2)}</p>
+              <div className="flex justify-between text-sm">
+                <span>Delivery Fee</span>
+                <span>₹{deliveryFee.toFixed(2)}</span>
               </div>
-
-              <div className="flex justify-between snap-text">
-                <p className="text-gray-600">Packaging Fee</p>
-                <p className="font-medium">₹{packagingFee.toFixed(2)}</p>
+              <div className="flex justify-between text-sm">
+                <span>Packaging Fee</span>
+                <span>₹{packagingFee.toFixed(2)}</span>
               </div>
-
-              <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between">
-                <p className="snap-heading-3">To Pay</p>
-                <p className="snap-heading-3 text-indigo-600">
-                  ₹{total.toFixed(2)}
-                </p>
+              <div className="flex justify-between font-bold mt-2 pt-2 border-t border-gray-200">
+                <span>Total</span>
+                <span>₹{total.toFixed(2)}</span>
               </div>
             </div>
 
-            <div className="bg-green-50 p-3 rounded-lg mb-2">
-              <p className="snap-text text-green-700 text-sm flex items-center">
-                <FiCheck className="mr-2" />
-                Free delivery on orders above ₹999
-              </p>
+            {/* Order Summary */}
+            <div className="mt-4">
+              <h3 className="text-md font-medium mb-2">Order Summary</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {cartItems.map((item) => (
+                  <div
+                    key={item.itemId}
+                    className="flex items-center py-2 border-b border-gray-100"
+                  >
+                    <div className="h-12 w-12 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden mr-3">
+                      <img
+                        src={item.product.imageUrl}
+                        alt={item.product.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{item.product.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {item.quantity} × ₹{item.product.price.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">
+                        ₹{(item.quantity * item.product.price).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </form>

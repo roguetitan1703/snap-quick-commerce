@@ -1,26 +1,44 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FiLock, FiMail, FiAlertCircle, FiChevronLeft } from "react-icons/fi";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const LoginPage = () => {
-  const [email, setEmail] = useState("");
+  const {
+    login,
+    error: authError,
+    isLoading,
+    isAuthenticated,
+  } = useAuthContext();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams?.get("redirect") || "/";
+
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {}
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{
+    username?: string;
+    password?: string;
+  }>({});
+  const [loginResponse, setLoginResponse] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace(redirect);
+    }
+  }, [isAuthenticated, router, redirect]);
 
   const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: { username?: string; password?: string } = {};
 
-    // Basic email validation
-    if (!email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Email is invalid";
+    // Username validation
+    if (!username) {
+      newErrors.username = "Username is required";
     }
 
     // Password validation
@@ -36,26 +54,48 @@ const LoginPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+    setLoginResponse(null);
 
     if (!validateForm()) {
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
-      // In a real app, this would call an API endpoint
-      console.log("Login credentials:", { email, password });
+      console.log("Login attempt with:", {
+        username: username,
+        passwordLength: password.length,
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Show loading state
+      setLoading(true);
 
-      // Redirect to home page after successful login
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Login failed:", error);
+      // Call login and store full response for debugging
+      await login(username, password);
+
+      // If we got here, login was successful
+      console.log("Login successful, redirecting to:", redirect);
+      router.push(redirect);
+
+      // For debugging purposes, store the success response
+      setLoginResponse({ success: true, message: "Login successful" });
+    } catch (err: any) {
+      console.error("Login exception:", err);
+
+      // Store error response for debugging
+      setLoginResponse({
+        success: false,
+        error: err.message || "An unexpected error occurred",
+      });
+
+      setErrors({
+        username:
+          err.message || "An unexpected error occurred. Please try again.",
+        password:
+          err.message || "An unexpected error occurred. Please try again.",
+      });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -79,31 +119,41 @@ const LoginPage = () => {
           <p className="snap-text-secondary mt-1">Login to continue shopping</p>
         </div>
 
+        {authError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center">
+            <FiAlertCircle className="h-5 w-5 mr-2" />
+            {authError}
+          </div>
+        )}
+
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="snap-text font-medium mb-1 block">
-              Email
+            <label
+              htmlFor="username"
+              className="snap-text font-medium mb-1 block"
+            >
+              Username
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FiMail className="h-5 w-5 text-gray-400" />
               </div>
               <input
-                id="email"
-                name="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                name="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className={`block w-full pl-10 pr-3 py-3 border ${
-                  errors.email ? "border-red-300" : "border-gray-300"
+                  errors.username ? "border-red-300" : "border-gray-300"
                 } rounded-lg shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                placeholder="you@example.com"
+                placeholder="your_username"
               />
             </div>
-            {errors.email && (
+            {errors.username && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
                 <FiAlertCircle className="h-4 w-4 mr-1" />
-                {errors.email}
+                {errors.username}
               </p>
             )}
           </div>
@@ -150,10 +200,10 @@ const LoginPage = () => {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={loading}
             className="snap-button-primary w-full py-3 rounded-lg"
           >
-            {isSubmitting ? "Logging in..." : "Login"}
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
@@ -164,6 +214,11 @@ const LoginPage = () => {
               Sign up
             </Link>
           </p>
+          {redirect && redirect !== "/" && (
+            <p className="mt-2 text-sm text-gray-600">
+              You'll be redirected to: {redirect}
+            </p>
+          )}
         </div>
 
         <div className="mt-8">
@@ -212,6 +267,12 @@ const LoginPage = () => {
             </button>
           </div>
         </div>
+
+        {loginResponse && (
+          <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs overflow-auto">
+            <pre>{JSON.stringify(loginResponse, null, 2)}</pre>
+          </div>
+        )}
       </div>
     </div>
   );
