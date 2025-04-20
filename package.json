@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -14,13 +14,21 @@
     "scan-dark": "node scripts/removeDarkMode.js"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-separator": "^1.1.2",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@radix-ui/react-toast": "^1.2.6",
     "@types/uuid": "^10.0.0",
     "axios": "^1.8.4",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.0.0",
+    "lucide-react": "^0.487.0",
     "next": "15.2.4",
+    "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
+    "tailwind-merge": "^3.1.0",
     "uuid": "^11.1.0",
     "zustand": "^4.4.6"
   },

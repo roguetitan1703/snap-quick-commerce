@@ -1,9 +1,11 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { ApiResponse, LoginResponse } from "@/utils/api";
 
 interface User {
   userId: number;
   username: string;
+  email: string;
 }
 
 interface AuthContextType {
@@ -11,8 +13,15 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string) => Promise<void>;
+  login: (
+    username: string,
+    password: string
+  ) => Promise<ApiResponse<LoginResponse>>;
+  register: (
+    username: string,
+    password: string,
+    email: string
+  ) => Promise<void>;
   logout: () => void;
   clearError: () => void;
 }

@@ -4,15 +4,18 @@ import axios from 'axios';
 const getBaseUrl = () => {
   // When running in the browser
   if (typeof window !== 'undefined') {
-    // Use current hostname - this will be 192.168.109.120 when accessed from network
-    const hostname = window.location.hostname;
-    return `http://${hostname}:8081/api`;
+    // For development, use the backend server port
+    // Make sure this matches the port in your application.properties
+    const port = '8082';
+    
+    // This will work regardless of whether we're on localhost or a network IP
+    return `http://${window.location.hostname}:${port}/api`;
   }
   // Default fallback when running on server
-  return 'http://localhost:8081/api';
+  return 'http://localhost:8082/api';
 };
 
-// API base URL - supports both localhost and network IP access
+// API base URL
 export const API_BASE_URL = getBaseUrl();
 
 // Type definitions
@@ -23,16 +26,27 @@ export interface ApiResponse<T = any> {
   status?: number;
 }
 
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
+export interface User {
+  userId: number;
+  username: string;
+  email: string;
+}
+
 export interface Product {
   productId: number;
   name: string;
   price: number;
   description: string;
-  category: string;
+  categoryId: number;
   imageUrl: string;
-  currentStock: number;
+  discountPercent: number;
   createdAt: string;
-  updatedAt: string;
+  isActive: boolean;
 }
 
 export interface CartItem {
@@ -49,18 +63,15 @@ export interface Cart {
   createdAt: string;
   updatedAt: string;
 }
-
-// Create axios instance with default config
+// In src/utils/api.ts
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 20000,
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json'
   },
-  // Accept all status codes and prevent axios from throwing errors on non-2xx responses
   validateStatus: () => true,
-  // Disable credentials for CORS to allow * origins
-  withCredentials: false,
+  withCredentials: false
 });
 
 // Add more detailed request logging
@@ -74,7 +85,7 @@ api.interceptors.request.use(
       fullUrl: `${config.baseURL}${config.url}`
     });
     // Add auth token if available
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -122,59 +133,72 @@ api.interceptors.response.use(
   }
 );
 
-// Generic API response handler
-const handleApiResponse = async <T>(apiCall: Promise<any>): Promise<ApiResponse<T>> => {
-  try {
-    const response = await apiCall;
-    
-    if (response.status >= 200 && response.status < 300) {
-      return {
-        success: true,
-        data: response.data,
-        error: undefined
-      };
-    } else {
-      return {
-        success: false,
-        data: null,
-        error: response.data?.message || `Error: ${response.status}`,
-        status: response.status
-      };
-    }
-  } catch (error: any) {
-    console.error('API Error:', error);
+// Helper functions for API response handling
+const handleApiResponse = <T>(response: any): ApiResponse<T> => {
+  if (response.status >= 200 && response.status < 300) {
+    return {
+      success: true,
+      data: response.data,
+      error: undefined
+    };
+  } else {
     return {
       success: false,
       data: null,
-      error: error.message || 'An unexpected error occurred',
+      error: response.data || 'Request failed',
+      status: response.status
     };
   }
 };
 
+const handleApiError = <T>(error: any): ApiResponse<T> => {
+  console.error('API error:', error);
+  return {
+    success: false,
+    data: null,
+    error: error.response?.data || 'Cannot connect to the server. Please try again later.'
+  };
+};
+
 // Auth API services
 export const authApi = {
-  login: async (username: string, password: string) => {
-    return handleApiResponse(api.post('/auth/login', { username, password }));
+  login: async (email: string, password: string): Promise<ApiResponse<LoginResponse>> => {
+    try {
+      const response = await api.post('/auth/login', { username: email, password });
+      return handleApiResponse<LoginResponse>(response);
+    } catch (error: any) {
+      return handleApiError<LoginResponse>(error);
+    }
   },
-  register: async (username: string, password: string) => {
-    return handleApiResponse(api.post('/auth/register', { username, password }));
+  register: async (username: string, password: string, email: string) => {
+    return handleApiResponse(api.post('/auth/register', { username, password, email }));
   },
   logout: () => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
   },
 };
 
 // Products API services
 export const productsApi = {
-  getAllProducts: async (): Promise<ApiResponse<Product[]>> => {
+  getAllProducts: async (category?: string, search?: string): Promise<ApiResponse<Product[]>> => {
     try {
-      const response = await api.get('/products');
+      // Build query parameters
+      const params: Record<string, string> = {};
+      if (category) params.category = category;
+      if (search) params.search = search;
+      
+      console.log('Fetching products with params:', params);
+      
+      const response = await api.get('/products', { params });
       
       // Since validateStatus allows all status codes, we need to check the status code manually
       if (response.status >= 200 && response.status < 300) {
+        // Ensure we're returning an array
+        const products = Array.isArray(response.data) ? response.data : [];
         return {
           success: true,
-          data: response.data,
+          data: products,
           error: undefined
         };
       } else {
@@ -182,7 +206,7 @@ export const productsApi = {
           success: false,
           error: `Error fetching products (${response.status})`,
           status: response.status,
-          data: null
+          data: []
         };
       }
     } catch (error: any) {
@@ -191,7 +215,7 @@ export const productsApi = {
       return {
         success: false,
         error: error.message || 'Failed to fetch products',
-        data: null
+        data: []
       };
     }
   },
@@ -239,76 +263,87 @@ export const productsApi = {
 
 // Cart API services
 export const cartApi = {
-  getCart: async (): Promise<ApiResponse<Cart>> => {
+  getCart: () => handleApiResponse<Cart>(api.get('/cart')),
+  getCartTotal: () => handleApiResponse(api.get('/cart/total')),
+  addToCart: (productId: number, quantity: number = 1) => handleApiResponse(api.post('/cart/items', { productId, quantity })),
+  updateCartItem: (itemId: number, quantity: number) => handleApiResponse(api.put(`/cart/items/${itemId}`, { quantity })),
+  removeCartItem: (itemId: number) => handleApiResponse(api.delete(`/cart/items/${itemId}`)),
+  clearCart: () => handleApiResponse(api.delete('/cart')),
+  getRecommendations: async (productId?: number): Promise<ApiResponse<Product[]>> => {
     try {
-      const response = await api.get('/cart');
-      
+      const response = await api.get(`/recommendations${productId ? `/${productId}` : ''}`);
       if (response.status >= 200 && response.status < 300) {
+        // Transform the API response to match our Product interface
+        const transformedRecommendations: Product[] = (response.data || []).map((item: any) => ({
+          productId: item.productId || 0,
+          name: item.name || 'Unknown Product',
+          description: item.description || '',
+          price: item.price || 0,
+          categoryId: item.categoryId || 0,
+          imageUrl: item.imageUrl || '/placeholder-product.jpg',
+          discountPercent: item.discountPercent || 0,
+          createdAt: item.createdAt || new Date().toISOString(),
+          isActive: item.isActive ?? true
+        }));
         return {
           success: true,
-          data: response.data,
+          data: transformedRecommendations,
           error: undefined
         };
       } else {
         return {
           success: false,
-          error: `Error fetching cart (${response.status})`,
+          error: `Error fetching recommendations (${response.status})`,
           status: response.status,
-          data: null
+          data: []
         };
       }
     } catch (error: any) {
-      console.error('Error in getCart:', error);
+      console.error('Error in getRecommendations:', error);
       return {
         success: false,
-        error: error.message || 'Failed to fetch cart',
-        data: null
+        error: error.message || 'Failed to fetch recommendations',
+        data: []
       };
     }
   },
-  
-  getCartTotal: async () => {
-    return handleApiResponse(api.get('/cart/total'));
-  },
-  
-  addToCart: async (productId: number, quantity = 1): Promise<ApiResponse<Cart>> => {
+  getProduct: async (productId: number): Promise<ApiResponse<Product>> => {
     try {
-      const response = await api.post('/cart/items', { productId, quantity });
-      
+      const response = await api.get(`/products/${productId}`);
       if (response.status >= 200 && response.status < 300) {
+        // Transform the API response to match our Product interface
+        const transformedProduct: Product = {
+          productId: response.data.productId || 0,
+          name: response.data.name || 'Unknown Product',
+          description: response.data.description || '',
+          price: response.data.price || 0,
+          categoryId: response.data.categoryId || 0,
+          imageUrl: response.data.imageUrl || '/placeholder-product.jpg',
+          discountPercent: response.data.discountPercent || 0,
+          createdAt: response.data.createdAt || new Date().toISOString(),
+          isActive: response.data.isActive ?? true
+        };
         return {
           success: true,
-          data: response.data,
+          data: transformedProduct,
           error: undefined
         };
       } else {
         return {
           success: false,
-          error: `Error adding to cart (${response.status})`,
+          error: `Error fetching product (${response.status})`,
           status: response.status,
           data: null
         };
       }
     } catch (error: any) {
-      console.error('Error in addToCart:', error);
+      console.error(`Error in getProduct(${productId}):`, error);
       return {
         success: false,
-        error: error.message || 'Failed to add to cart',
+        error: error.message || 'Failed to fetch product',
         data: null
       };
     }
-  },
-  
-  updateCartItem: async (itemId: number, quantity: number) => {
-    return handleApiResponse(api.put(`/cart/${itemId}`, { quantity }));
-  },
-  
-  removeCartItem: async (itemId: number) => {
-    return handleApiResponse(api.delete(`/cart/${itemId}`));
-  },
-  
-  clearCart: async () => {
-    return handleApiResponse(api.delete('/cart'));
   }
 };
 
@@ -356,4 +391,4 @@ export const predictionsApi = {
   },
 };
 
-export default api; 
+export default api;

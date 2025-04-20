@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -8,113 +8,29 @@ import {
   FiChevronLeft,
   FiPackage,
   FiArrowLeft,
+  FiLoader,
 } from "react-icons/fi";
 import ImprovedImage from "@/components/ui/ImprovedImage";
+import api from "@/utils/api";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { formatPrice } from "@/utils/formatters";
 
-// Mock order data for quick commerce grocery products
-const orders = [
-  {
-    id: "ORD-1234",
-    date: "Apr 2, 2023",
-    total: 124.99,
-    status: "Delivered",
-    items: [
-      {
-        id: 1,
-        name: "Organic Bananas (6 pcs)",
-        price: 4.99,
-        quantity: 2,
-        image: "/images/products/banana.jpg",
-      },
-      {
-        id: 2,
-        name: "Fresh Milk 1L",
-        price: 2.99,
-        quantity: 1,
-        image: "/images/products/milk.jpg",
-      },
-      {
-        id: 3,
-        name: "Avocado (2 pcs)",
-        price: 3.59,
-        quantity: 2,
-        image: "/images/products/avocado.jpg",
-      },
-    ],
-  },
-  {
-    id: "ORD-1189",
-    date: "Mar 28, 2023",
-    total: 64.5,
-    status: "Delivered",
-    items: [
-      {
-        id: 4,
-        name: "Brown Eggs (6 pcs)",
-        price: 3.49,
-        quantity: 1,
-        image: "/images/products/eggs.jpg",
-      },
-      {
-        id: 5,
-        name: "Sourdough Bread",
-        price: 5.99,
-        quantity: 2,
-        image: "/images/products/bread.svg",
-      },
-      {
-        id: 6,
-        name: "Greek Yogurt",
-        price: 4.49,
-        quantity: 3,
-        image: "/images/products/yogurt.jpg",
-      },
-    ],
-  },
-  {
-    id: "ORD-1005",
-    date: "Mar 15, 2023",
-    total: 47.95,
-    status: "Delivered",
-    items: [
-      {
-        id: 7,
-        name: "Almond Milk 1L",
-        price: 3.99,
-        quantity: 2,
-        image: "/images/products/almond-milk.svg",
-      },
-      {
-        id: 8,
-        name: "Organic Spinach 250g",
-        price: 2.49,
-        quantity: 1,
-        image: "/images/products/spinach.jpg",
-      },
-      {
-        id: 9,
-        name: "Mixed Berries Pack",
-        price: 8.99,
-        quantity: 2,
-        image: "/images/products/berries.svg",
-      },
-      {
-        id: 10,
-        name: "Toilet Paper 6 Rolls",
-        price: 5.99,
-        quantity: 1,
-        image: "/images/products/toilet-paper.svg",
-      },
-      {
-        id: 11,
-        name: "Liquid Hand Soap 250ml",
-        price: 3.79,
-        quantity: 1,
-        image: "/images/products/soap.svg",
-      },
-    ],
-  },
-];
+// Define interfaces for type safety
+interface OrderItem {
+  id: number | string;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+}
+
+interface Order {
+  id: string;
+  date: string;
+  total: number;
+  status: string;
+  items: OrderItem[];
+}
 
 // Image component with error handling and fallback
 const ProductImage = ({ src, alt }: { src: string; alt: string }) => {
@@ -136,6 +52,100 @@ const ProductImage = ({ src, alt }: { src: string; alt: string }) => {
 };
 
 const OrdersPage = () => {
+  const { user } = useAuthContext();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await api.get("/orders");
+
+        // If the API returns real orders, use them
+        if (response.data && Array.isArray(response.data)) {
+          setOrders(response.data);
+        } else {
+          // If the API doesn't return orders yet, fall back to example data
+          // but use the SVG images instead of JPGs
+          setOrders([
+            {
+              id: "ORD-1234",
+              date: "Apr 2, 2023",
+              total: 124.99,
+              status: "Delivered",
+              items: [
+                {
+                  id: 1,
+                  name: "Organic Bananas (6 pcs)",
+                  price: 4.99,
+                  quantity: 2,
+                  image: "/images/products/bananas.svg",
+                },
+                {
+                  id: 2,
+                  name: "Fresh Milk 1L",
+                  price: 2.99,
+                  quantity: 1,
+                  image: "/images/products/milk.svg",
+                },
+                {
+                  id: 3,
+                  name: "Avocado (2 pcs)",
+                  price: 3.59,
+                  quantity: 2,
+                  image: "/images/products/avocado.svg",
+                },
+              ],
+            },
+            {
+              id: "ORD-1189",
+              date: "Mar 28, 2023",
+              total: 64.5,
+              status: "Delivered",
+              items: [
+                {
+                  id: 4,
+                  name: "Brown Eggs (6 pcs)",
+                  price: 3.49,
+                  quantity: 1,
+                  image: "/images/products/eggs.svg",
+                },
+                {
+                  id: 5,
+                  name: "Sourdough Bread",
+                  price: 5.99,
+                  quantity: 2,
+                  image: "/images/products/bread.svg",
+                },
+                {
+                  id: 6,
+                  name: "Greek Yogurt",
+                  price: 4.49,
+                  quantity: 3,
+                  image: "/images/products/yogurt.svg",
+                },
+              ],
+            },
+          ]);
+        }
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching orders:", err);
+        setError("Failed to load orders. Please try again later.");
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -146,7 +156,15 @@ const OrdersPage = () => {
         <h1 className="text-lg font-semibold">My Orders</h1>
       </div>
 
-      {orders.length > 0 ? (
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <FiLoader className="w-8 h-8 animate-spin text-indigo-600" />
+        </div>
+      ) : error ? (
+        <div className="p-4 text-center text-red-600">
+          <p>{error}</p>
+        </div>
+      ) : orders.length > 0 ? (
         <div className="p-4 space-y-3">
           {orders.map((order) => (
             <div
@@ -208,7 +226,7 @@ const OrdersPage = () => {
                   <div>
                     <span className="text-xs text-gray-500">Total</span>
                     <p className="font-bold text-gray-900">
-                      ₹{order.total.toFixed(2)}
+                      ₹{formatPrice(order.total)}
                     </p>
                   </div>
                   <Link
@@ -248,7 +266,7 @@ const OrdersPage = () => {
           </p>
           <Link
             href="/products"
-            className="bg-indigo-600 text-white py-3 px-6 rounded-lg font-medium"
+            className="bg-indigo-600 text-white py-2 px-6 rounded-full font-medium"
           >
             Browse Products
           </Link>

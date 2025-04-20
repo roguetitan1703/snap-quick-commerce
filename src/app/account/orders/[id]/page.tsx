@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -15,8 +15,13 @@ import {
   FiDownload,
   FiMessageSquare,
   FiShoppingBag,
+  FiLoader,
+  FiAlertCircle,
 } from "react-icons/fi";
 import ImprovedImage from "@/components/ui/ImprovedImage";
+import api from "@/utils/api";
+import { formatPrice } from "@/utils/formatters";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 // Helper function to get order by ID (mocked data for quick commerce grocery products)
 const getOrderById = (id: string) => {
@@ -39,21 +44,21 @@ const getOrderById = (id: string) => {
           name: "Organic Bananas (6 pcs)",
           price: 4.99,
           quantity: 2,
-          image: "/images/products/banana.jpg",
+          image: "/images/products/bananas.svg",
         },
         {
           id: 2,
           name: "Fresh Milk 1L",
           price: 2.99,
           quantity: 1,
-          image: "/images/products/milk.jpg",
+          image: "/images/products/milk.svg",
         },
         {
           id: 3,
           name: "Avocado (2 pcs)",
           price: 3.59,
           quantity: 2,
-          image: "/images/products/avocado.jpg",
+          image: "/images/products/avocado.svg",
         },
       ],
       timeline: [
@@ -104,7 +109,7 @@ const getOrderById = (id: string) => {
           name: "Brown Eggs (6 pcs)",
           price: 3.49,
           quantity: 1,
-          image: "/images/products/eggs.jpg",
+          image: "/images/products/eggs.svg",
         },
         {
           id: 5,
@@ -118,7 +123,7 @@ const getOrderById = (id: string) => {
           name: "Greek Yogurt",
           price: 4.49,
           quantity: 3,
-          image: "/images/products/yogurt.jpg",
+          image: "/images/products/yogurt.svg",
         },
       ],
       timeline: [
@@ -176,7 +181,7 @@ const getOrderById = (id: string) => {
           name: "Organic Spinach 250g",
           price: 2.49,
           quantity: 1,
-          image: "/images/products/spinach.jpg",
+          image: "/images/products/spinach.svg",
         },
         {
           id: 9,

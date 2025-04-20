@@ -41,7 +41,7 @@ export const ImprovedImage = ({
   }, [src]);
 
   // Check if the image is an SVG
-  const isSvg = imgSrc.endsWith(".svg");
+  const isSvg = typeof imgSrc === "string" && imgSrc.endsWith(".svg");
 
   // Default dimensions for SVG images if not provided (only set if fill is not true)
   const width = fill ? undefined : propWidth || (isSvg ? 500 : undefined);

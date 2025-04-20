@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import NavBar from "./NavBar";
 import BottomNav from "./BottomNav";
@@ -12,7 +12,23 @@ interface ClientLayoutProps {
 
 const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {
   const pathname = usePathname();
-  const hideBottomNav = pathname === "/cart" || pathname === "/checkout";
+  const [mounted, setMounted] = useState(false);
+  const [hideBottomNav, setHideBottomNav] = useState(false);
+
+  // Handle client-side operations in useEffect to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+    setHideBottomNav(pathname === "/cart" || pathname === "/checkout");
+  }, [pathname]);
+
+  // Render a simpler version on server to avoid hydration issues
+  if (!mounted) {
+    return (
+      <AuthProvider>
+        <div className="min-h-screen">{children}</div>
+      </AuthProvider>
+    );
+  }
 
   return (
     <AuthProvider>

@@ -17,10 +17,10 @@ const LoginPage = () => {
   const searchParams = useSearchParams();
   const redirect = searchParams?.get("redirect") || "/";
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{
-    username?: string;
+    email?: string;
     password?: string;
   }>({});
   const [loginResponse, setLoginResponse] = useState<any>(null);
@@ -28,17 +28,21 @@ const LoginPage = () => {
 
   // Redirect if already authenticated
   useEffect(() => {
+    console.log("Auth state:", { isAuthenticated, redirect });
     if (isAuthenticated) {
+      console.log("User authenticated, redirecting to:", redirect);
       router.replace(redirect);
     }
   }, [isAuthenticated, router, redirect]);
 
   const validateForm = () => {
-    const newErrors: { username?: string; password?: string } = {};
+    const newErrors: { email?: string; password?: string } = {};
 
-    // Username validation
-    if (!username) {
-      newErrors.username = "Username is required";
+    // Email validation
+    if (!email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Please enter a valid email address";
     }
 
     // Password validation
@@ -63,7 +67,7 @@ const LoginPage = () => {
 
     try {
       console.log("Login attempt with:", {
-        username: username,
+        email: email.trim(),
         passwordLength: password.length,
       });
 
@@ -71,7 +75,12 @@ const LoginPage = () => {
       setLoading(true);
 
       // Call login and store full response for debugging
-      await login(username, password);
+      const response = await login(email.trim(), password);
+      console.log("Login response:", response);
+
+      if (!response.success) {
+        throw new Error(response.error || "Login failed");
+      }
 
       // If we got here, login was successful
       console.log("Login successful, redirecting to:", redirect);
@@ -88,11 +97,9 @@ const LoginPage = () => {
         error: err.message || "An unexpected error occurred",
       });
 
+      const errorMessage = err.message || "Invalid email or password";
       setErrors({
-        username:
-          err.message || "An unexpected error occurred. Please try again.",
-        password:
-          err.message || "An unexpected error occurred. Please try again.",
+        email: errorMessage,
       });
     } finally {
       setLoading(false);
@@ -127,66 +134,64 @@ const LoginPage = () => {
         )}
 
         <form className="space-y-5" onSubmit={handleSubmit}>
-          <div>
-            <label
-              htmlFor="username"
-              className="snap-text font-medium mb-1 block"
-            >
-              Username
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiMail className="h-5 w-5 text-gray-400" />
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Email
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiMail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                    errors.email ? "border-red-300" : "border-gray-300"
+                  }`}
+                  placeholder="Enter your email"
+                />
               </div>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className={`block w-full pl-10 pr-3 py-3 border ${
-                  errors.username ? "border-red-300" : "border-gray-300"
-                } rounded-lg shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                placeholder="your_username"
-              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              )}
             </div>
-            {errors.username && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <FiAlertCircle className="h-4 w-4 mr-1" />
-                {errors.username}
-              </p>
-            )}
-          </div>
 
-          <div>
-            <label
-              htmlFor="password"
-              className="snap-text font-medium mb-1 block"
-            >
-              Password
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiLock className="h-5 w-5 text-gray-400" />
+            <div>
+              <label
+                htmlFor="password"
+                className="snap-text font-medium mb-1 block"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiLock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`block w-full pl-10 pr-3 py-3 border ${
+                    errors.password ? "border-red-300" : "border-gray-300"
+                  } rounded-lg shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
+                  placeholder="••••••••"
+                />
               </div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={`block w-full pl-10 pr-3 py-3 border ${
-                  errors.password ? "border-red-300" : "border-gray-300"
-                } rounded-lg shadow-sm placeholder-gray-400 bg-white text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-                placeholder="••••••••"
-              />
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <FiAlertCircle className="h-4 w-4 mr-1" />
+                  {errors.password}
+                </p>
+              )}
             </div>
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <FiAlertCircle className="h-4 w-4 mr-1" />
-                {errors.password}
-              </p>
-            )}
           </div>
 
           <div className="flex justify-end">

@@ -6,11 +6,11 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  category: string;
+  categoryId: number;
   imageUrl: string;
-  currentStock: number;
-  createdAt?: string;
-  updatedAt?: string;
+  discountPercent: number;
+  createdAt: string;
+  isActive: boolean;
 }
 
 interface UseProductsResult {
@@ -27,18 +27,20 @@ export function useProducts(initialCategory?: string, initialSearch?: string): U
   const [category, setCategory] = useState<string | undefined>(initialCategory);
   const [search, setSearch] = useState<string | undefined>(initialSearch);
 
-  const fetchProducts = async (category?: string, search?: string) => {
+  const fetchProducts = async (fetchCategory?: string, fetchSearch?: string) => {
     try {
       setLoading(true);
       setError(null);
       
-      if (category !== undefined) setCategory(category);
-      if (search !== undefined) setSearch(search);
+      // Use local variables for the API call, don't update state here
+      const categoryToUse = fetchCategory !== undefined ? fetchCategory : category;
+      const searchToUse = fetchSearch !== undefined ? fetchSearch : search;
       
-      const response = await productsApi.getAllProducts(category, search);
+      console.log('Fetching products with:', { categoryToUse, searchToUse });
+      const response = await productsApi.getAllProducts(categoryToUse, searchToUse);
       
       if (response.success && response.data) {
-        setProducts(response.data);
+        setProducts(Array.isArray(response.data) ? response.data : []);
       } else {
         console.error('Error fetching products:', response.error);
         setError(response.error || 'Failed to fetch products. Please try again later.');
@@ -53,15 +55,42 @@ export function useProducts(initialCategory?: string, initialSearch?: string): U
     }
   };
 
+  const refetch = (newCategory?: string, newSearch?: string) => {
+    console.log('Products refetch called with:', { newCategory, newSearch });
+    
+    // Update the state variables if new values are provided
+    if (newCategory !== undefined) {
+      console.log('Setting new category:', newCategory);
+      setCategory(newCategory);
+    }
+    
+    if (newSearch !== undefined) {
+      console.log('Setting new search:', newSearch);
+      setSearch(newSearch);
+    }
+    
+    // Fetch immediately with the new values
+    console.log('Fetching products immediately');
+    fetchProducts(newCategory, newSearch);
+  };
+
+  // Initial fetch
   useEffect(() => {
-    fetchProducts(category, search);
-  }, []);
+    fetchProducts();
+  }, []); // Only run once on mount
+
+  // Handle filter changes
+  useEffect(() => {
+    if (category !== undefined || search !== undefined) {
+      fetchProducts();
+    }
+  }, [category, search]); // Run when filters change
 
   return {
     products,
     loading,
     error,
-    refetch: fetchProducts
+    refetch
   };
 }
 

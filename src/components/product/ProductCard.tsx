@@ -45,10 +45,10 @@ export default function ProductCard({
     productId,
     name,
     category,
-    price,
+    price = 0,
     imageUrl,
     currentStock = 0,
-  } = product;
+  } = product || {};
 
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
@@ -72,11 +72,31 @@ export default function ProductCard({
     e.preventDefault();
     e.stopPropagation();
 
+    if (!product || product.currentStock <= 0) return;
+
+    setIsAddingToCart(true);
+
     try {
-      setIsAddingToCart(true);
-      await addToCart(productId, product, 1);
+      const productId = product.productId;
+      // Create a safe product object with only the needed properties
+      const safeProduct = {
+        productId: product.productId,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        category: product.category,
+        imageUrl: product.imageUrl,
+        currentStock: product.currentStock,
+      };
+
+      await addToCart(productId, safeProduct, 1);
+      console.log(`${product.name} has been added to your cart.`);
+      // Show alert for successful add
+      alert(`${product.name} has been added to your cart.`);
     } catch (error) {
-      console.error("Failed to add to cart:", error);
+      console.error("Error adding to cart:", error);
+      // Show alert for error
+      alert("Failed to add product to cart. Please try again.");
     } finally {
       setIsAddingToCart(false);
     }
@@ -146,7 +166,7 @@ export default function ProductCard({
           <div>
             <div className="flex items-center">
               <span className="text-indigo-600 font-semibold">
-                ₹{price.toFixed(2)}
+                ₹{(Number(price) || 0).toFixed(2)}
               </span>
             </div>
           </div>

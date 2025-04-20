@@ -11,6 +11,7 @@ import {
   FiClock,
   FiArrowRight,
   FiChevronLeft,
+  FiFilter,
 } from "react-icons/fi";
 
 // Sample product data (will be replaced with API calls)
@@ -19,32 +20,28 @@ const allProducts = [
     id: "1",
     name: "Premium Wireless Headphones",
     price: 129.99,
-    imageUrl:
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cHJvZHVjdHxlbnwwfHwwfHx8MA%3D%3D",
+    imageUrl: "/images/products/headphones.svg",
     category: "Electronics",
   },
   {
     id: "2",
     name: "Organic Cotton T-Shirt",
     price: 24.99,
-    imageUrl:
-      "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mjh8fHRzaGlydHxlbnwwfHwwfHx8MA%3D%3D",
+    imageUrl: "/images/products/tshirt.svg",
     category: "Clothing",
   },
   {
     id: "3",
     name: "Smart Water Bottle",
     price: 39.99,
-    imageUrl:
-      "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww",
+    imageUrl: "/images/products/water-bottle.svg",
     category: "Health",
   },
   {
     id: "4",
     name: "Gourmet Coffee Beans",
     price: 14.99,
-    imageUrl:
-      "https://images.unsplash.com/photo-1626778279070-c5577ca5fe27?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGNvZmZlZSUyMGJlYW5zfGVufDB8fDB8fHww",
+    imageUrl: "/images/products/coffee.svg",
     category: "Food",
   },
 ];
@@ -79,6 +76,7 @@ const SearchPage = () => {
   const [searchHistory, setSearchHistory] = useState(initialSearchHistory);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   // Focus the search input on mount
   useEffect(() => {
@@ -87,18 +85,26 @@ const SearchPage = () => {
 
   // Search products when search term changes
   useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setSearchResults([]);
-      return;
-    }
+    const fetchResults = async () => {
+      if (searchTerm.trim() === "") {
+        setSearchResults([]);
+        return;
+      }
 
-    const results = allProducts.filter(
-      (product) =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/products?search=${searchTerm}`);
+        const data = await response.json();
+        setSearchResults(data);
+      } catch (error) {
+        console.error("Error fetching search results:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setSearchResults(results);
+    const debounceFetch = setTimeout(fetchResults, 300);
+    return () => clearTimeout(debounceFetch);
   }, [searchTerm]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -128,154 +134,81 @@ const SearchPage = () => {
   };
 
   return (
-    <div className="pb-20">
-      {/* Header with back button */}
-      <div className="bg-white px-4 py-5 flex items-center sticky top-0 z-10 shadow-sm">
-        <Link href="/" className="mr-3">
-          <FiChevronLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="snap-heading-1">Search</h1>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex items-center mb-6">
+        <h1 className="text-2xl font-semibold">Search Products</h1>
+        <button
+          className="ml-auto p-2 rounded-full bg-gray-100"
+          aria-label="Filter products"
+        >
+          <FiFilter className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* Search Bar */}
-      <div className="snap-container">
-        <form onSubmit={handleSearch} className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => setIsSearchFocused(true)}
-            placeholder="Search products..."
-            className="w-full pl-10 pr-10 py-3 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
-          />
-          <div className="absolute top-0 left-0 h-full flex items-center pl-4">
-            <FiSearch className="text-gray-500" />
-          </div>
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={clearSearch}
-              className="absolute top-0 right-0 h-full flex items-center pr-4"
-              aria-label="Clear search"
-            >
-              <FiX className="text-gray-500" />
-            </button>
-          )}
-        </form>
+      <div className="flex mb-4">
+        <input
+          ref={inputRef}
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onFocus={() => setIsSearchFocused(true)}
+          placeholder="Search for products..."
+          className="flex-1 p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+        <button className="px-4 bg-indigo-600 text-white rounded-r-md">
+          <FiSearch />
+        </button>
       </div>
 
-      {/* Search Content */}
-      <div className="snap-container">
-        {searchTerm === "" ? (
-          // Show history and suggestions when no search term
-          <>
-            {/* Search History */}
-            {searchHistory.length > 0 && (
-              <div className="snap-section">
-                <h3 className="snap-heading-3 mb-3">Recent Searches</h3>
-                <ul className="space-y-3">
-                  {searchHistory.map((term) => (
-                    <li
-                      key={term}
-                      className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm"
-                    >
-                      <button
-                        className="flex items-center snap-text"
-                        onClick={() => setSearchTerm(term)}
-                      >
-                        <FiClock className="text-gray-400 mr-3" />
-                        <span>{term}</span>
-                      </button>
-                      <button
-                        onClick={() => removeFromHistory(term)}
-                        className="text-gray-400"
-                        aria-label={`Remove ${term} from search history`}
-                      >
-                        <FiX size={16} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Popular Categories */}
-            <div className="snap-section">
-              <h3 className="snap-heading-3 mb-3">Popular Categories</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {popularCategories.map((category) => (
-                  <Link
-                    href={`/products?category=${category.name}`}
-                    key={category.name}
-                    className="flex items-center p-3 bg-white shadow-sm rounded-lg"
-                  >
-                    <span className="text-xl mr-3">{category.icon}</span>
-                    <span className="snap-text">{category.name}</span>
-                    <FiArrowRight className="ml-auto text-gray-400" />
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </>
-        ) : (
-          // Show search results when search term exists
-          <div className="snap-section">
-            {searchResults.length > 0 ? (
-              <>
-                <p className="snap-text-secondary mb-4">
-                  {searchResults.length} result
-                  {searchResults.length !== 1 ? "s" : ""} for "{searchTerm}"
-                </p>
-                <ul className="space-y-3">
-                  {searchResults.map((product) => (
-                    <li key={product.id} className="snap-card">
-                      <Link
-                        href={`/products/${product.id}`}
-                        className="flex items-center"
-                      >
-                        <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-gray-200">
-                          {product.imageUrl && (
-                            <ImprovedImage
-                              src={product.imageUrl}
-                              alt={product.name}
-                              width={64}
-                              height={64}
-                              className="h-full w-full object-cover"
-                            />
-                          )}
-                        </div>
-                        <div className="ml-4 flex-1">
-                          <h3 className="snap-heading-3">{product.name}</h3>
-                          <p className="snap-text-secondary">
-                            {product.category}
-                          </p>
-                          <p className="snap-text font-bold mt-1">
-                            ${product.price.toFixed(2)}
-                          </p>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiSearch className="w-8 h-8 text-gray-400" />
+      {loading ? (
+        <div className="animate-pulse">
+          <div className="h-24 bg-gray-200 rounded-lg mb-4"></div>
+          <div className="h-24 bg-gray-200 rounded-lg mb-4"></div>
+          <div className="h-24 bg-gray-200 rounded-lg mb-4"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {searchResults.length > 0 ? (
+            searchResults.map((product) => (
+              <div
+                key={product.id}
+                className="bg-white rounded-lg overflow-hidden shadow-sm"
+              >
+                <div className="relative h-40 overflow-hidden">
+                  <ImprovedImage
+                    src={product.imageUrl}
+                    alt={product.name}
+                    width={300}
+                    height={300}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <h3 className="snap-heading-3 mb-2">No results found</h3>
-                <p className="snap-text-secondary mb-6">
-                  We couldn't find any products matching "{searchTerm}"
-                </p>
-                <button onClick={clearSearch} className="snap-button-secondary">
-                  Clear Search
-                </button>
+                <div className="p-3">
+                  <span className="text-gray-500 text-xs">
+                    {product.category}
+                  </span>
+                  <h3 className="text-sm font-medium text-gray-900 mt-1 line-clamp-2">
+                    {product.name}
+                  </h3>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-indigo-600 font-semibold">
+                      ₹{product.price.toFixed(2)}
+                    </span>
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="text-xs text-indigo-600 font-medium hover:text-indigo-800"
+                    >
+                      View
+                    </Link>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No results found for "{searchTerm}"</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };
